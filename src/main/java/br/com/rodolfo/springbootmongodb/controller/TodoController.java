@@ -49,9 +49,8 @@ public class TodoController {
 
 	@PutMapping(path = "/todos/{id}")
 	public ResponseEntity<?> updateById(@PathVariable("id") String id, @Valid @RequestBody TodoDTO todo) {
-		todoService.updateById(id, todo);
-
-		return ResponseEntity.status(HttpStatus.OK).body("Update Todo with id " + id);
+		return todoService.updateById(id, todo).map(ResponseEntity::ok)
+				.orElseGet(() -> ResponseEntity.status(HttpStatus.CONFLICT).build());
 	}
 
 	@DeleteMapping(path = "/todos/{id}")

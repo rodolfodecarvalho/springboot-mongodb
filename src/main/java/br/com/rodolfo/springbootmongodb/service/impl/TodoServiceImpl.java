@@ -22,13 +22,11 @@ public class TodoServiceImpl implements TodoService {
 
 	@Override
 	public TodoDTO create(TodoDTO todo) {
-
-		Optional<TodoDTO> todoOptional = todoRepository.findByTodo(todo.getTodo());
-
-		if (todoOptional.isPresent()) {
+		todoRepository.findByTodo(todo.getTodo()).ifPresent(todoWithSameName -> {
 			throw new ObjectFoundException(
-					"Object found id: " + todoOptional.get().getId() + ", Type: " + TodoDTO.class.getTypeName());
-		}
+					"Object found id: " + todoWithSameName.getId() + ", Type: " + TodoDTO.class.getTypeName());
+
+		});
 
 		todo.setCreatedAt(new Date(System.currentTimeMillis()));
 
@@ -42,47 +40,38 @@ public class TodoServiceImpl implements TodoService {
 
 	@Override
 	public TodoDTO getSingle(String id) {
-		Optional<TodoDTO> todoOptional = todoRepository.findById(id);
-		return todoOptional.orElseThrow(() -> new ObjectNotFoundException(
+		return todoRepository.findById(id).orElseThrow(() -> new ObjectNotFoundException(
 				"Object not found Id:" + id + ", Type: " + TodoDTO.class.getTypeName()));
 	}
 
 	@Override
-	public void updateById(String id, TodoDTO todo) {
-		Optional<TodoDTO> todoOptional = todoRepository.findById(id);
-		Optional<TodoDTO> todoWithSameName = todoRepository.findByTodo(todo.getTodo());
-
-		if (todoOptional.isPresent()) {
-			if (todoWithSameName.isPresent()
-					&& Boolean.FALSE.equals(todoWithSameName.get().getId().equalsIgnoreCase(id))) {
+	public Optional<TodoDTO> updateById(String id, TodoDTO todo) {
+		todoRepository.findByTodo(todo.getTodo()).ifPresent(todoWithSameName -> {
+			if (Boolean.FALSE.equals(todoWithSameName.getId().equalsIgnoreCase(id))) {
 				throw new DataIntegrityException(
 						"Object already exists: " + id + ", Type: " + TodoDTO.class.getTypeName());
 			}
+		});
 
-			TodoDTO todoToSave = todoOptional.get();
+		return Optional.ofNullable(todoRepository.findById(id).map(todoToSave -> {
 			todoToSave.setTodo(todo.getTodo());
 			todoToSave.setDescription(todo.getDescription());
 			todoToSave.setCompleted(todo.getCompleted());
 			todoToSave.setCreatedAt(todo.getCreatedAt());
 			todoToSave.setUpdatedAt(new Date(System.currentTimeMillis()));
 
-			todoRepository.save(todoToSave);
-		} else {
-			throw new ObjectNotFoundException(
-					"Object not found with id: " + id + ", Type: " + TodoDTO.class.getTypeName());
-		}
+			return todoRepository.save(todoToSave);
+		}).orElseThrow(() -> new ObjectNotFoundException(
+				"Object not found with id: " + id + ", Type: " + TodoDTO.class.getTypeName())));
 
 	}
 
 	@Override
 	public void deleteById(String id) {
-		Optional<TodoDTO> todoOptional = todoRepository.findById(id);
-
-		if (todoOptional.isPresent()) {
-			todoRepository.deleteById(id);
-		} else {
-			throw new ObjectNotFoundException(
-					"Object not found with id: " + id + ", Type: " + TodoDTO.class.getTypeName());
-		}
+		todoRepository.findById(id).map(existingTodo -> {
+			todoRepository.delete(existingTodo);
+			return "";
+		}).orElseThrow(() -> new ObjectNotFoundException(
+				"Object not found with id: " + id + ", Type: " + TodoDTO.class.getTypeName()));
 	}
 }
